@@ -16,5 +16,12 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    // allow ngrok tunnels (the subdomain changes on every ngrok restart)
+    allowedHosts: ['.ngrok-free.dev', '.ngrok-free.app'],
+    // Same-origin API: the browser calls /api/... on this server and Vite
+    // forwards it, so the app works through a tunnel and needs no CORS.
+    proxy: {
+      '/api': process.env.API_PROXY_TARGET ?? 'http://localhost:8000',
+    },
   },
 })
