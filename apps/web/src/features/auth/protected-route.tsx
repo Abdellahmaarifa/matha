@@ -14,7 +14,7 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
 
   // Subject requirement (IV.2): "Once his profile is complete, he can access
   // the website" -- a verified user who hasn't filled in gender/bio/tags/a
-  // photo yet must be steered to finish their profile before they can browse,
+  // photo/a location yet must be steered to finish their profile before they can browse,
   // search or match, instead of silently being let through with the defaults.
   const mustCompleteProfile = !isPending && !!me && !me.profile_complete && location.pathname !== PROFILE_PATH;
 

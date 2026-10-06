@@ -1,4 +1,4 @@
-import { Heart, SlidersHorizontal, X } from "lucide-react";
+import { Heart, RefreshCw, SearchX, SlidersHorizontal, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -17,7 +17,7 @@ export function BrowsePage() {
   const [filters, setFilters] = useState<BrowseFilters>({});
   const [showFilters, setShowFilters] = useState(false);
   const [offset, setOffset] = useState(0);
-  const { data, isPending, isError, isFetching } = useBrowse({ ...filters, offset });
+  const { data, isPending, isError, isFetching, refetch } = useBrowse({ ...filters, offset });
   const like = useLikeUser();
 
   const [queue, setQueue] = useState<BrowseCard[] | null>(null);
@@ -105,7 +105,15 @@ export function BrowsePage() {
         {isPending ? (
           <Skeleton className="w-full max-w-sm flex-1" />
         ) : isError ? (
-          <p className="p-4 text-sm text-destructive">Could not load suggestions.</p>
+          <div className="flex flex-1 flex-col items-center justify-center gap-3 p-4 text-center">
+            <SearchX className="size-10 text-muted-foreground" />
+            <p className="text-sm font-medium">Suggestions aren't available right now</p>
+            <p className="max-w-xs text-sm text-muted-foreground">Something went wrong on our side. Give it another try in a moment.</p>
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => refetch()} disabled={isFetching}>
+              <RefreshCw className={isFetching ? "size-3.5 animate-spin" : "size-3.5"} />
+              Try again
+            </Button>
+          </div>
         ) : stack.length > 0 ? (
           <>
             <div className="relative min-h-0 w-full max-w-sm flex-1 lg:max-h-[560px]">
@@ -146,9 +154,17 @@ export function BrowsePage() {
             </div>
           </>
         ) : (
-          <p className="p-4 text-center text-sm text-muted-foreground">
-            No profiles match yet. Try widening your filters.
-          </p>
+          <div className="flex flex-1 flex-col items-center justify-center gap-3 p-4 text-center">
+            <Heart className="size-10 text-muted-foreground" />
+            <p className="text-sm font-medium">No one to show yet</p>
+            <p className="max-w-xs text-sm text-muted-foreground">
+              No profiles match right now. Try widening your filters or check back later as more people join.
+            </p>
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setShowFilters(true)}>
+              <SlidersHorizontal className="size-3.5" />
+              Adjust filters
+            </Button>
+          </div>
         )}
       </div>
     </div>

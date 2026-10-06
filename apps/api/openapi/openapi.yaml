@@ -136,7 +136,7 @@ components:
       type: object
       properties:
         id: { type: integer }
-        type: { type: string, enum: [like, unlike, view, message, match, date_proposed, date_accepted, date_declined, date_cancelled] }
+        type: { type: string, enum: [like, unlike, view, match, date_proposed, date_accepted, date_declined, date_cancelled] }
         is_read: { type: boolean }
         created_at: { type: string, format: date-time }
         actor_id: { type: integer, nullable: true }

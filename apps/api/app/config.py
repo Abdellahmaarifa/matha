@@ -19,3 +19,7 @@ class Config:
     # use a domain verified in Resend, or "onboarding@resend.dev" for testing.
     RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
     MAIL_FROM = os.environ.get("MAIL_FROM", "Matcha <onboarding@resend.dev>")
+    # "console" is for local testing without a verified domain: mail that can't
+    # be delivered (Resend's sandbox only reaches the account owner, or no API
+    # key at all) is written to the API log instead of failing the request.
+    MAIL_MODE = os.environ.get("MAIL_MODE", "resend")

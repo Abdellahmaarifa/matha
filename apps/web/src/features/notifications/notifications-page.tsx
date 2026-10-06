@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Calendar, CalendarCheck, CalendarX, Heart, HeartCrack, MessageCircle, Sparkles, Eye } from "lucide-react";
+import { Calendar, CalendarCheck, CalendarX, Heart, HeartCrack, Sparkles, Eye } from "lucide-react";
 
 import { photoUrl } from "@matcha/api-client/client";
 import { useMarkAllNotificationsRead, useNotifications } from "@matcha/api-client/hooks";
@@ -10,7 +10,6 @@ const ICONS = {
   like: Heart,
   unlike: HeartCrack,
   view: Eye,
-  message: MessageCircle,
   match: Sparkles,
   date_proposed: Calendar,
   date_accepted: CalendarCheck,
@@ -22,7 +21,6 @@ const LABELS: Record<string, string> = {
   like: "liked your profile",
   unlike: "removed their like",
   view: "viewed your profile",
-  message: "sent you a message",
   match: "matched with you",
   date_proposed: "proposed a date",
   date_accepted: "confirmed your date",
@@ -71,13 +69,11 @@ export function NotificationsPage() {
                 </div>
               );
             }
-            // A "new message" notification should open the conversation, not
-            // the sender's profile -- everything else still points at the
-            // profile the notification is about. Date notifications need the
-            // same treatment: the only UI that can respond to a date
-            // proposal (the date planner) lives inside the chat thread page.
+            // Date notifications open the conversation, not the sender's
+            // profile: the only UI that can respond to a date proposal (the
+            // date planner) lives inside the chat thread page. Everything
+            // else points at the profile the notification is about.
             if (
-              n.type === "message" ||
               n.type === "date_proposed" ||
               n.type === "date_accepted" ||
               n.type === "date_declined" ||

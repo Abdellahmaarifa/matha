@@ -617,7 +617,7 @@ export interface components {
         Notification: {
             id: number;
             /** @enum {string} */
-            type: "like" | "unlike" | "view" | "message" | "match" | "date_proposed" | "date_accepted" | "date_declined" | "date_cancelled";
+            type: "like" | "unlike" | "view" | "match" | "date_proposed" | "date_accepted" | "date_declined" | "date_cancelled";
             is_read: boolean;
             /** Format: date-time */
             created_at: string;

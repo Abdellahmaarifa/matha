@@ -1,6 +1,7 @@
 from flask import Blueprint, g, jsonify, request
 
 from app.auth import service
+from app.common.ip_geo import client_ip
 from app.common.rate_limit import rate_limit
 from app.common.security import decode_token, require_auth
 from app.common.validation import NAME_RE, Validator
@@ -66,10 +67,7 @@ def login():
     v.required_str("password", max_len=128, label="Password")
     v.raise_if_invalid()
 
-    # Prefer X-Forwarded-For (set by a reverse proxy in front of the API) over
-    # the raw socket address, which behind such a proxy is just the proxy itself.
-    client_ip = (request.headers.get("X-Forwarded-For", "").split(",")[0].strip() or request.remote_addr)
-    result = service.login(v.clean["identifier"], v.clean["password"], client_ip)
+    result = service.login(v.clean["identifier"], v.clean["password"], client_ip())
     return jsonify(result)
 
 

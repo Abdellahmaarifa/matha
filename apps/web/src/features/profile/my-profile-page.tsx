@@ -38,6 +38,7 @@ export function MyProfilePage() {
     !me.biography.trim() ? "a short bio" : null,
     me.tags.length === 0 ? "at least one interest tag" : null,
     me.photos.length === 0 ? "at least one photo" : null,
+    me.latitude == null ? "your location (use GPS or pick a city below)" : null,
   ].filter((v): v is string => v !== null);
 
   return (

@@ -105,7 +105,9 @@ _SORT_COLUMNS = {
 def _base_candidates_sql(viewer_id: int, viewer: dict, filters: dict) -> tuple[str, dict]:
     allowed_genders = _allowed_genders_for(viewer["gender"], viewer["sexual_pref"])
     has_viewer_location = viewer["latitude"] is not None and viewer["longitude"] is not None
-    distance_expr = HAVERSINE_KM_SQL if has_viewer_location else "NULL"
+    # Typed NULL: a bare NULL resolves to text in the wrapping subquery, which
+    # breaks the numeric ranking math on distance_km for viewers with no location.
+    distance_expr = HAVERSINE_KM_SQL if has_viewer_location else "NULL::double precision"
 
     conditions = [
         "u.id <> %(viewer_id)s",

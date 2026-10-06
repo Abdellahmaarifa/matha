@@ -1,7 +1,7 @@
 from app.db import execute, query_all, query_one
 
 VALID_TYPES = {
-    "like", "unlike", "view", "message", "match",
+    "like", "unlike", "view", "match",
     "date_proposed", "date_accepted", "date_declined", "date_cancelled",
 }
 

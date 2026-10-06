@@ -13,16 +13,10 @@ of which worker handles a given request.
 """
 from functools import wraps
 
-from flask import jsonify, request
+from flask import jsonify
 
+from app.common.ip_geo import client_ip
 from app.db import execute, query_one
-
-
-def _client_ip() -> str:
-    # Same precedence as auth/routes.py's login(): prefer the reverse proxy's
-    # X-Forwarded-For over the raw socket address.
-    forwarded = request.headers.get("X-Forwarded-For", "")
-    return forwarded.split(",")[0].strip() or request.remote_addr or "unknown"
 
 
 def rate_limit(max_attempts: int, window_seconds: int):
@@ -34,7 +28,7 @@ def rate_limit(max_attempts: int, window_seconds: int):
 
         @wraps(fn)
         def wrapper(*args, **kwargs):
-            key = f"{key_prefix}:{_client_ip()}"
+            key = f"{key_prefix}:{client_ip() or 'unknown'}"
 
             # Prune this key's old rows opportunistically so the table stays
             # small, then count what's left in the current window.

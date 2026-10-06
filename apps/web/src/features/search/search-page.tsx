@@ -1,3 +1,4 @@
+import { RefreshCw, SearchX } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { BROWSE_PAGE_SIZE, type BrowseFilters, useSearch } from "@matcha/api-client/hooks";
@@ -13,7 +14,7 @@ export function SearchPage() {
   const [filters, setFilters] = useState<BrowseFilters>({});
   const [offset, setOffset] = useState(0);
   const [results, setResults] = useState<BrowseCard[]>([]);
-  const { data, isPending, isFetching, isError } = useSearch({ ...filters, offset });
+  const { data, isPending, isFetching, isError, refetch } = useSearch({ ...filters, offset });
 
   // A criteria change starts a fresh result set at page 0 -- otherwise we'd
   // be appending page-2-of-the-old-filters onto page-1-of-the-new-filters.
@@ -44,7 +45,15 @@ export function SearchPage() {
           ))}
         </div>
       ) : isError ? (
-        <p className="p-4 text-sm text-destructive">Search failed.</p>
+        <div className="flex flex-col items-center gap-3 p-8 text-center">
+          <SearchX className="size-10 text-muted-foreground" />
+          <p className="text-sm font-medium">Search isn't available right now</p>
+          <p className="max-w-xs text-sm text-muted-foreground">Something went wrong on our side. Give it another try in a moment.</p>
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => refetch()} disabled={isFetching}>
+            <RefreshCw className={isFetching ? "size-3.5 animate-spin" : "size-3.5"} />
+            Try again
+          </Button>
+        </div>
       ) : results.length > 0 ? (
         <>
           <div className="grid grid-cols-1 gap-2.5 p-3 lg:grid-cols-2 xl:grid-cols-3">
@@ -61,7 +70,11 @@ export function SearchPage() {
           ) : null}
         </>
       ) : (
-        <p className="p-4 text-sm text-muted-foreground">No results. Adjust your criteria above.</p>
+        <div className="flex flex-col items-center gap-3 p-8 text-center">
+          <SearchX className="size-10 text-muted-foreground" />
+          <p className="text-sm font-medium">No results</p>
+          <p className="max-w-xs text-sm text-muted-foreground">No profiles match these criteria. Try widening the filters above.</p>
+        </div>
       )}
     </div>
   );

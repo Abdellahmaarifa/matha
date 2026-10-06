@@ -9,6 +9,15 @@ RESEND_URL = "https://api.resend.com/emails"
 
 
 def send_mail(to: str, subject: str, text: str, html: str | None = None) -> None:
+    try:
+        _send_via_resend(to, subject, text, html)
+    except ApiError:
+        if current_app.config["MAIL_MODE"] != "console":
+            raise
+        current_app.logger.warning("MAIL_MODE=console, undelivered mail to %s -- %s\n%s", to, subject, text)
+
+
+def _send_via_resend(to: str, subject: str, text: str, html: str | None) -> None:
     cfg = current_app.config
     if not cfg["RESEND_API_KEY"]:
         current_app.logger.error("RESEND_API_KEY is not set; cannot send mail to %s", to)

@@ -1,7 +1,6 @@
 from app.common.errors import bad_request, forbidden, not_found
 from app.common.relationships import is_blocked, is_connected
 from app.db import execute, execute_returning, query_all, query_one
-from app.notifications.service import notify
 
 
 def list_conversations(user_id: int) -> list[dict]:
@@ -47,14 +46,6 @@ def list_messages(user_id: int, peer_id: int, limit: int = 100) -> list[dict]:
         "UPDATE messages SET read_at = now() WHERE sender_id = %s AND recipient_id = %s AND read_at IS NULL",
         (peer_id, user_id),
     )
-    # Keep the "you have a new message" bell badge (visible from any page, per
-    # the subject) in sync with what the user actually read -- without this,
-    # reading every message in a thread never clears its own notifications.
-    execute(
-        "UPDATE notifications SET is_read = TRUE "
-        "WHERE user_id = %s AND actor_id = %s AND type = 'message' AND is_read = FALSE",
-        (user_id, peer_id),
-    )
     rows = query_all(
         """
         SELECT id, sender_id, recipient_id, body, created_at, read_at
@@ -83,7 +74,9 @@ def send_message(sender_id: int, recipient_id: int, body: str) -> dict:
         "RETURNING id, sender_id, recipient_id, body, created_at, read_at",
         (sender_id, recipient_id, body),
     )
-    notify(recipient_id, "message", sender_id)
+    # No notify() here: new messages are surfaced by the Chat tab's own unread
+    # badge and toast (visible from any page, per the subject), so they don't
+    # also land in the notifications list.
     return message
 
 

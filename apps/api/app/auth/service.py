@@ -2,7 +2,7 @@ import datetime as dt
 import secrets
 
 from app.common.errors import bad_request, conflict, not_found, unauthorized
-from app.common.ip_geo import locate_ip
+from app.common.ip_geo import locate_user_if_missing
 from app.common.mail import send_reset_email, send_verification_email
 from app.common.security import hash_password, issue_access_token, issue_refresh_token, verify_password
 from app.db import execute, execute_returning, query_one
@@ -85,7 +85,7 @@ def verify_email(token: str) -> None:
 
 def login(identifier: str, password: str, client_ip: str | None = None) -> dict:
     user = query_one(
-        "SELECT id, password_hash, is_verified, latitude, longitude FROM users WHERE email = %s OR username = %s",
+        "SELECT id, password_hash, is_verified FROM users WHERE email = %s OR username = %s",
         (identifier.lower(), identifier),
     )
     if not user or not verify_password(password, user["password_hash"]):
@@ -98,14 +98,7 @@ def login(identifier: str, password: str, client_ip: str | None = None) -> dict:
     # Subject requirement: a user who never grants GPS and never picks a city
     # manually must still end up locatable -- fall back to IP geolocation,
     # silently, without asking. Never runs again once *any* location is set.
-    if user["latitude"] is None and client_ip:
-        located = locate_ip(client_ip)
-        if located:
-            execute(
-                "UPDATE users SET latitude = %s, longitude = %s, location_label = %s, "
-                "location_source = 'ip', updated_at = now() WHERE id = %s",
-                (located["latitude"], located["longitude"], located["label"], user["id"]),
-            )
+    locate_user_if_missing(user["id"], client_ip)
 
     return {
         "access_token": issue_access_token(user["id"]),

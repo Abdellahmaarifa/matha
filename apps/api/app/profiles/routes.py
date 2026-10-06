@@ -1,6 +1,7 @@
 from flask import Blueprint, g, jsonify, request
 
 from app.common.errors import bad_request
+from app.common.ip_geo import client_ip, locate_user_if_missing
 from app.common.security import require_auth, require_complete_profile
 from app.common.validation import GENDERS, NAME_RE, ORIENTATIONS, Validator
 from app.profiles import service
@@ -11,6 +12,9 @@ bp = Blueprint("profiles", __name__, url_prefix="/api")
 @bp.get("/me")
 @require_auth
 def get_me():
+    # Sessions that started before a location existed (or whose login-time
+    # lookup failed) get another silent IP-based attempt here.
+    locate_user_if_missing(g.user_id, client_ip())
     return jsonify(service.get_own_profile(g.user_id))
 
 

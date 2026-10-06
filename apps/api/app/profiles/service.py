@@ -42,6 +42,9 @@ def _is_profile_complete(user: dict) -> bool:
         and bool((user.get("biography") or "").strip())
         and len(user.get("tags") or []) > 0
         and len(user.get("photos") or []) > 0
+        # IV.2: GPS, or a manually picked city if the user opts out of GPS (or
+        # the silent IP fallback in app/common/ip_geo.py), is required to match.
+        and user.get("latitude") is not None
     )
 
 
@@ -50,7 +53,7 @@ def is_profile_complete(user_id: int) -> bool:
     enough columns to answer for an arbitrary user id -- used by
     `require_complete_profile` so the server-side gate and the `/api/me`
     response stay backed by one definition."""
-    user = query_one("SELECT gender, biography FROM users WHERE id = %s", (user_id,))
+    user = query_one("SELECT gender, biography, latitude FROM users WHERE id = %s", (user_id,))
     if not user:
         return False
     user["tags"] = _tags_for(user_id)
