@@ -1,0 +1,804 @@
+openapi: 3.0.3
+info:
+  title: Matcha API
+  version: "1.0.0"
+  description: Dating app API (Flask, raw SQL, JWT auth). Source of truth for the generated TS client types.
+servers:
+  - url: http://localhost:8000
+
+components:
+  responses:
+    BadRequest:
+      description: Validation error
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthorized:
+      description: Missing/invalid credentials
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Forbidden:
+      description: Not allowed
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Conflict:
+      description: Conflict
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error: { type: string }
+        message: { type: string }
+        fields: { type: object, additionalProperties: { type: string } }
+      required: [error, message]
+
+    Photo:
+      type: object
+      properties:
+        id: { type: integer }
+        filename: { type: string }
+        is_profile: { type: boolean }
+        position: { type: integer }
+      required: [id, filename, is_profile, position]
+
+    Gender:
+      type: string
+      enum: [man, woman, other]
+    Orientation:
+      type: string
+      enum: [heterosexual, homosexual, bisexual]
+
+    Me:
+      type: object
+      properties:
+        id: { type: integer }
+        email: { type: string }
+        username: { type: string }
+        first_name: { type: string }
+        last_name: { type: string }
+        gender: { $ref: "#/components/schemas/Gender" }
+        sexual_pref: { $ref: "#/components/schemas/Orientation" }
+        biography: { type: string }
+        latitude: { type: number, nullable: true }
+        longitude: { type: number, nullable: true }
+        location_label: { type: string, nullable: true }
+        location_source: { type: string, enum: [gps, manual] }
+        fame_rating: { type: integer }
+        is_online: { type: boolean }
+        last_seen_at: { type: string, format: date-time, nullable: true }
+        created_at: { type: string, format: date-time }
+        age: { type: integer }
+        tags: { type: array, items: { type: string } }
+        photos: { type: array, items: { $ref: "#/components/schemas/Photo" } }
+        profile_complete:
+          type: boolean
+          description: True once gender, biography, at least one tag and at least one photo are all set.
+      required: [id, email, username, first_name, last_name, gender, sexual_pref, biography,
+                 latitude, longitude, location_label, location_source, fame_rating, is_online,
+                 last_seen_at, created_at, age, tags, photos, profile_complete]
+
+    PublicProfile:
+      allOf:
+        - $ref: "#/components/schemas/Me"
+        - type: object
+          properties:
+            liked_by_me: { type: boolean }
+            likes_me: { type: boolean }
+            connected: { type: boolean }
+          required: [liked_by_me, likes_me, connected]
+      # note: PublicProfile omits email compared to Me at the route level
+
+    BrowseCard:
+      type: object
+      properties:
+        id: { type: integer }
+        username: { type: string }
+        first_name: { type: string }
+        gender: { $ref: "#/components/schemas/Gender" }
+        sexual_pref: { $ref: "#/components/schemas/Orientation" }
+        fame_rating: { type: integer }
+        location_label: { type: string, nullable: true }
+        is_online: { type: boolean }
+        age: { type: integer }
+        distance_km: { type: number, nullable: true }
+        photo: { type: string, nullable: true }
+        shared_tags: { type: integer }
+        latitude: { type: number, nullable: true, description: "Jittered to ~1km for privacy" }
+        longitude: { type: number, nullable: true, description: "Jittered to ~1km for privacy" }
+      required: [id, username, first_name, gender, sexual_pref, fame_rating, location_label,
+                 is_online, age, distance_km, photo, shared_tags, latitude, longitude]
+
+    Notification:
+      type: object
+      properties:
+        id: { type: integer }
+        type: { type: string, enum: [like, unlike, view, message, match, date_proposed, date_accepted, date_declined, date_cancelled] }
+        is_read: { type: boolean }
+        created_at: { type: string, format: date-time }
+        actor_id: { type: integer, nullable: true }
+        actor_username: { type: string, nullable: true }
+        actor_first_name: { type: string, nullable: true }
+        actor_photo: { type: string, nullable: true }
+      required: [id, type, is_read, created_at, actor_id, actor_username, actor_first_name, actor_photo]
+
+    Message:
+      type: object
+      properties:
+        id: { type: integer }
+        sender_id: { type: integer }
+        recipient_id: { type: integer }
+        body: { type: string }
+        created_at: { type: string, format: date-time }
+        read_at: { type: string, format: date-time, nullable: true }
+      required: [id, sender_id, recipient_id, body, created_at, read_at]
+
+    DatePlan:
+      type: object
+      description: A proposed real-life date between two matched users (bonus feature).
+      properties:
+        id: { type: integer }
+        proposer_id: { type: integer }
+        recipient_id: { type: integer }
+        title: { type: string }
+        location_label: { type: string }
+        latitude: { type: number, nullable: true }
+        longitude: { type: number, nullable: true }
+        scheduled_at: { type: string, format: date-time }
+        note: { type: string }
+        status: { type: string, enum: [pending, accepted, declined, cancelled] }
+        created_at: { type: string, format: date-time }
+      required: [id, proposer_id, recipient_id, title, location_label, latitude, longitude,
+                 scheduled_at, note, status, created_at]
+
+    PersonSummary:
+      type: object
+      properties:
+        id: { type: integer }
+        username: { type: string }
+        first_name: { type: string }
+        fame_rating: { type: integer }
+        photo: { type: string, nullable: true }
+        visited_at: { type: string, format: date-time, description: "Present on /me/visitors: when they last viewed this profile." }
+        visit_count: { type: integer, description: "Present on /me/visitors: total number of times they've viewed this profile." }
+        liked_at: { type: string, format: date-time, description: "Present on /me/likers: when they liked this profile." }
+      required: [id, username, first_name, fame_rating, photo]
+
+    Conversation:
+      type: object
+      properties:
+        id: { type: integer }
+        username: { type: string }
+        first_name: { type: string }
+        is_online: { type: boolean }
+        last_seen_at: { type: string, format: date-time, nullable: true }
+        photo: { type: string, nullable: true }
+        last_message: { type: string, nullable: true }
+        last_message_at: { type: string, format: date-time, nullable: true }
+        unread_count: { type: integer }
+      required: [id, username, first_name, is_online, last_seen_at, photo, last_message,
+                 last_message_at, unread_count]
+
+paths:
+  /api/auth/register:
+    post:
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email: { type: string }
+                username: { type: string }
+                first_name: { type: string }
+                last_name: { type: string }
+                birth_date: { type: string, format: date }
+                password: { type: string }
+              required: [email, username, first_name, last_name, birth_date, password]
+      responses:
+        "201":
+          description: Registered, verification email sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: integer }
+                  email: { type: string }
+                  username: { type: string }
+                required: [id, email, username]
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/auth/verify-email:
+    get:
+      operationId: verifyEmail
+      parameters:
+        - in: query
+          name: token
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Verified }
+        "400": { $ref: "#/components/responses/BadRequest" }
+
+  /api/auth/login:
+    post:
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                identifier: { type: string }
+                password: { type: string }
+              required: [identifier, password]
+      responses:
+        "200":
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token: { type: string }
+                  refresh_token: { type: string }
+                  user_id: { type: integer }
+                required: [access_token, refresh_token, user_id]
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/auth/refresh:
+    post:
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties: { refresh_token: { type: string } }
+              required: [refresh_token]
+      responses:
+        "200":
+          description: New access token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: { access_token: { type: string } }
+                required: [access_token]
+
+  /api/auth/logout:
+    post:
+      operationId: logout
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: OK }
+
+  /api/auth/forgot-password:
+    post:
+      operationId: forgotPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties: { email: { type: string } }
+              required: [email]
+      responses:
+        "200": { description: OK (always, to avoid leaking account existence) }
+
+  /api/auth/reset-password:
+    post:
+      operationId: resetPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token: { type: string }
+                password: { type: string }
+              required: [token, password]
+      responses:
+        "200": { description: OK }
+        "400": { $ref: "#/components/responses/BadRequest" }
+
+  /api/auth/oauth/providers:
+    get:
+      operationId: listOAuthProviders
+      description: Third-party login strategies currently configured (bonus feature). GET /api/auth/oauth/{id} starts that provider's flow with a full-page redirect.
+      responses:
+        "200":
+          description: Configured providers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  providers:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: string }
+                        label: { type: string }
+                      required: [id, label]
+                required: [providers]
+
+  /api/auth/oauth/complete:
+    post:
+      operationId: completeOAuthSignup
+      description: Finishes a brand-new OAuth signup with the fields the provider didn't give us (e.g. birth_date). `token` is the short-lived signup token the callback redirect handed to /oauth/complete-signup.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token: { type: string }
+                username: { type: string }
+                first_name: { type: string }
+                last_name: { type: string }
+                birth_date: { type: string, format: date }
+                email: { type: string, description: "Only required if the provider didn't supply one" }
+              required: [token, username, first_name, last_name, birth_date]
+      responses:
+        "201":
+          description: Account created and logged in
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token: { type: string }
+                  refresh_token: { type: string }
+                required: [access_token, refresh_token]
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "409": { description: Username already taken }
+
+  /api/me:
+    get:
+      operationId: getMe
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Current user profile
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Me" }
+    patch:
+      operationId: updateMe
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                first_name: { type: string }
+                last_name: { type: string }
+                email: { type: string }
+                gender: { $ref: "#/components/schemas/Gender" }
+                sexual_pref: { $ref: "#/components/schemas/Orientation" }
+                biography: { type: string }
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Me" }
+
+  /api/me/tags:
+    put:
+      operationId: setTags
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties: { tags: { type: array, items: { type: string } } }
+      responses:
+        "200": { description: Updated tags }
+
+  /api/me/location:
+    put:
+      operationId: setLocation
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                latitude: { type: number }
+                longitude: { type: number }
+                source: { type: string, enum: [gps, manual] }
+                label: { type: string }
+              required: [latitude, longitude, source]
+      responses:
+        "200": { description: OK }
+
+  /api/me/photos:
+    post:
+      operationId: uploadPhoto
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties: { file: { type: string, format: binary } }
+      responses:
+        "201":
+          description: Uploaded
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Photo" }
+
+  /api/me/photos/{photoId}:
+    delete:
+      operationId: deletePhoto
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: photoId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200": { description: Deleted }
+
+  /api/me/photos/{photoId}/profile-picture:
+    put:
+      operationId: setProfilePicture
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: photoId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200": { description: OK }
+
+  /api/me/visitors:
+    get:
+      operationId: listVisitors
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/PersonSummary" }
+
+  /api/me/likers:
+    get:
+      operationId: listLikers
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/PersonSummary" }
+
+  /api/users/{userId}:
+    get:
+      operationId: getUserProfile
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Public profile
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublicProfile" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/users/{userId}/like:
+    post:
+      operationId: likeUser
+      security: [{ bearerAuth: [] }]
+      parameters: [{ in: path, name: userId, required: true, schema: { type: integer } }]
+      responses:
+        "200":
+          description: Like recorded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: { connected: { type: boolean } }
+                required: [connected]
+    delete:
+      operationId: unlikeUser
+      security: [{ bearerAuth: [] }]
+      parameters: [{ in: path, name: userId, required: true, schema: { type: integer } }]
+      responses:
+        "200": { description: OK }
+
+  /api/users/{userId}/block:
+    post:
+      operationId: blockUser
+      security: [{ bearerAuth: [] }]
+      parameters: [{ in: path, name: userId, required: true, schema: { type: integer } }]
+      responses:
+        "200": { description: OK }
+
+  /api/users/{userId}/report:
+    post:
+      operationId: reportUser
+      security: [{ bearerAuth: [] }]
+      parameters: [{ in: path, name: userId, required: true, schema: { type: integer } }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string, enum: [fake_account, harassment, inappropriate_content, other] }
+      responses:
+        "200": { description: OK }
+
+  /api/browse:
+    get:
+      operationId: browseProfiles
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: sort
+          schema: { type: string, enum: [age, location, fame_rating, tags] }
+        - in: query
+          name: min_age
+          schema: { type: integer }
+        - in: query
+          name: max_age
+          schema: { type: integer }
+        - in: query
+          name: min_fame
+          schema: { type: integer }
+        - in: query
+          name: max_fame
+          schema: { type: integer }
+        - in: query
+          name: location
+          schema: { type: string }
+        - in: query
+          name: tags
+          schema: { type: string, description: "comma separated" }
+        - in: query
+          name: offset
+          schema: { type: integer, minimum: 0, default: 0 }
+      responses:
+        "200":
+          description: Suggested profiles
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/BrowseCard" }
+
+  /api/search:
+    get:
+      operationId: searchProfiles
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: sort
+          schema: { type: string, enum: [age, location, fame_rating, tags] }
+        - in: query
+          name: min_age
+          schema: { type: integer }
+        - in: query
+          name: max_age
+          schema: { type: integer }
+        - in: query
+          name: min_fame
+          schema: { type: integer }
+        - in: query
+          name: max_fame
+          schema: { type: integer }
+        - in: query
+          name: location
+          schema: { type: string }
+        - in: query
+          name: tags
+          schema: { type: string }
+        - in: query
+          name: offset
+          schema: { type: integer, minimum: 0, default: 0 }
+      responses:
+        "200":
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/BrowseCard" }
+
+  /api/notifications:
+    get:
+      operationId: listNotifications
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/Notification" } }
+                  unread_count: { type: integer }
+                required: [items, unread_count]
+
+  /api/notifications/{notificationId}/read:
+    post:
+      operationId: markNotificationRead
+      security: [{ bearerAuth: [] }]
+      parameters: [{ in: path, name: notificationId, required: true, schema: { type: integer } }]
+      responses:
+        "200": { description: OK }
+
+  /api/notifications/read-all:
+    post:
+      operationId: markAllNotificationsRead
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: OK }
+
+  /api/conversations:
+    get:
+      operationId: listConversations
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Conversation" }
+
+  /api/conversations/{peerId}/messages:
+    get:
+      operationId: listMessages
+      security: [{ bearerAuth: [] }]
+      parameters: [{ in: path, name: peerId, required: true, schema: { type: integer } }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Message" }
+    post:
+      operationId: sendMessage
+      security: [{ bearerAuth: [] }]
+      parameters: [{ in: path, name: peerId, required: true, schema: { type: integer } }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties: { body: { type: string } }
+              required: [body]
+      responses:
+        "201":
+          description: Sent
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Message" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/messages/{messageId}:
+    delete:
+      operationId: deleteMessage
+      security: [{ bearerAuth: [] }]
+      parameters: [{ in: path, name: messageId, required: true, schema: { type: integer } }]
+      responses:
+        "200": { description: Deleted }
+
+  /api/dates/{peerId}:
+    get:
+      operationId: listDatesWithPeer
+      description: Bonus feature -- proposed real-life dates between the current user and a matched peer.
+      security: [{ bearerAuth: [] }]
+      parameters: [{ in: path, name: peerId, required: true, schema: { type: integer } }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/DatePlan" } }
+    post:
+      operationId: proposeDate
+      description: Bonus feature -- propose a real-life date. Only works between mutually-connected (matched) users.
+      security: [{ bearerAuth: [] }]
+      parameters: [{ in: path, name: peerId, required: true, schema: { type: integer } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title: { type: string }
+                location_label: { type: string }
+                latitude: { type: number, nullable: true }
+                longitude: { type: number, nullable: true }
+                scheduled_at: { type: string, format: date-time }
+                note: { type: string }
+              required: [title, location_label, scheduled_at]
+      responses:
+        "201":
+          description: Proposed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DatePlan" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/dates/{dateId}/respond:
+    post:
+      operationId: respondToDate
+      description: Bonus feature -- accept or decline a proposed date (recipient only).
+      security: [{ bearerAuth: [] }]
+      parameters: [{ in: path, name: dateId, required: true, schema: { type: integer } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties: { status: { type: string, enum: [accepted, declined] } }
+              required: [status]
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DatePlan" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/dates/{dateId}:
+    delete:
+      operationId: cancelDate
+      description: Bonus feature -- cancel a date (either participant).
+      security: [{ bearerAuth: [] }]
+      parameters: [{ in: path, name: dateId, required: true, schema: { type: integer } }]
+      responses:
+        "200": { description: Cancelled }

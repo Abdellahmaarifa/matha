@@ -1,0 +1,16 @@
+{
+  "name": "@matcha/api-client",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "peerDependencies": {
+    "react": "^19"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.103.1",
+    "openapi-fetch": "^0.17.0"
+  },
+  "devDependencies": {
+    "vite": "^8.3.0"
+  }
+}

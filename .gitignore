@@ -4,4 +4,19 @@ nohup.out
 *.idea
 uploads
 
-1
+# node / pnpm
+node_modules/
+.pnpm-store/
+apps/web/dist/
+apps/web/src/routeTree.gen.ts
+
+# python
+apps/api/.venv/
+apps/api/__pycache__/
+apps/api/**/__pycache__/
+apps/api/uploads/*
+!apps/api/uploads/.gitkeep
+
+# raw CelebA-HQ dataset checkout (several GB) - only the curated,
+# resized subset in apps/api/seed/photos/ ships with the repo
+/CelebAMask-HQ/

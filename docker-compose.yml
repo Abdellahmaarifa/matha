@@ -1,79 +1,55 @@
 services:
-  # adminer:
-  #   image: adminer
-  #   restart: always
-  #   environment:
-  #     - ADMINER_DESIGN=pappu687	
-  #     - ADMINER_DEFAULT_SERVER=postgres
-  #   depends_on:
-  #     - postgres
-  #   ports:
-  #     - 8080:8080
-  #   networks:
-  #     - db
-
   postgres:
-    image: postgis/postgis:16-master
-    restart: always
+    image: postgres:16-alpine
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: matcha
+      POSTGRES_PASSWORD: matcha
+      POSTGRES_DB: matcha
+    ports:
+      - "5544:5432"
+    volumes:
+      - matcha_pg_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
-      interval: 30s
+      test: ["CMD-SHELL", "pg_isready -U matcha -d matcha"]
+      interval: 5s
       timeout: 3s
       retries: 20
-    ports:
-      - ${DATABASE_PORT}:5432
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
-      - ./database/sql/01-init.sql:/docker-entrypoint-initdb.d/01-init.sql
-      - ./database/sql/02-extra.sql:/docker-entrypoint-initdb.d/02-extra.sql
-    networks:
-      - db
 
-  back:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    restart: always
+  api:
+    build: ./apps/api
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://matcha:matcha@postgres:5432/matcha
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./apps/api:/srv
+      - matcha_uploads:/srv/uploads
     depends_on:
       postgres:
         condition: service_healthy
-    ports:
-      - ${API_PORT_EXTERNAL}:${API_PORT_INTERNAL}
-    env_file:
-      - ./.env
-    volumes:
-      - ./backend:/app
-      - /app/node_modules
-    networks:
-      - backend
-      - db
+    command: ["sh", "-c", "python migrate.py && gunicorn -w 4 -b 0.0.0.0:8000 wsgi:app --reload"]
 
-
-  front:
+  web:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    restart: always
-    ports:
-      - "4200:4200"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-      - ./env.js:/app/assets/env.js:ro
+      context: .
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
     environment:
-      - FRONT_URL=${FRONT_URL}
-      - BACK_URL=${BACK_URL}
-
-networks:
-  backend:
-    driver: bridge
-  db:
-    driver: bridge
+      VITE_API_URL: http://localhost:8000
+    ports:
+      - "5173:5173"
+    volumes:
+      - .:/workspace
+      - /workspace/node_modules
+      - /workspace/apps/web/node_modules
+      - /workspace/packages/ui/node_modules
+      - /workspace/packages/api-client/node_modules
+    depends_on:
+      - api
 
 volumes:
-  postgres-data:
+  matcha_pg_data:
+  matcha_uploads:
