@@ -38,7 +38,9 @@ services:
       dockerfile: apps/web/Dockerfile
     restart: unless-stopped
     environment:
-      VITE_API_URL: http://localhost:8000
+      # empty = call /api on the same origin; Vite proxies it to the api container
+      VITE_API_URL: ""
+      API_PROXY_TARGET: http://api:8000
     ports:
       - "5173:5173"
     volumes:
