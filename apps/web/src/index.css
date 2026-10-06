@@ -28,6 +28,14 @@
 @custom-variant data-active (&[data-state="active"]);
 
 @theme inline {
+    --animate-shake: shake 0.5s ease-in-out;
+    @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        15%, 55% { transform: translateX(-6px); }
+        35%, 75% { transform: translateX(6px); }
+        90% { transform: translateX(-2px); }
+    }
+
     --font-head: 'Archivo Black', sans-serif;
     --font-sans: 'Space Grotesk Variable', sans-serif;
     --font-heading: var(--font-head);

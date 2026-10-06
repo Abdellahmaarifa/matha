@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { toast } from "sonner";
@@ -10,6 +10,7 @@ import { Button } from "@matcha/ui/button";
 import { Card, CardContent } from "@matcha/ui/card";
 import { Input } from "@matcha/ui/input";
 import { apiErrorMessage } from "@/lib/api-error";
+import { applyFieldProblems, signupFieldProblems } from "@/lib/field-problems";
 import { resetPasswordFormSchema, type ResetPasswordFormInput } from "@/lib/schemas";
 
 export function ResetPasswordPage() {
@@ -19,8 +20,21 @@ export function ResetPasswordPage() {
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    setError,
+    formState: { errors, isSubmitting },
   } = useForm<ResetPasswordFormInput>({ resolver: zodResolver(resetPasswordFormSchema) });
+
+  // Checked up front so an already-used or expired link shows a message
+  // instead of the form failing on submit.
+  const status = useQuery({
+    queryKey: ["reset-password-status", token],
+    queryFn: async () => {
+      const { data, error } = await api.GET("/api/auth/reset-password/status", { params: { query: { token } } });
+      if (error) throw error;
+      return data;
+    },
+    enabled: token.length > 0,
+  });
 
   const mutation = useMutation({
     mutationFn: async (values: ResetPasswordFormInput) => {
@@ -34,10 +48,25 @@ export function ResetPasswordPage() {
     onError: (error) => toast.error(apiErrorMessage(error, "This link is invalid or expired")),
   });
 
-  if (!token) {
+  const onSubmit = handleSubmit(async (values) => {
+    if (applyFieldProblems(await signupFieldProblems({ password: values.password }), setError)) return;
+    mutation.mutate(values);
+  });
+
+  if (token && status.isPending) {
+    return (
+      <div className="flex min-h-dvh flex-col items-center justify-center px-6 text-center">
+        <p className="text-sm text-muted-foreground">Checking your link…</p>
+      </div>
+    );
+  }
+
+  if (!token || !status.data?.valid) {
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center gap-3 px-6 text-center">
-        <p className="text-sm text-muted-foreground">Missing reset token.</p>
+        <p className="text-sm text-muted-foreground">
+          {token ? "This reset link is invalid, expired or already used." : "Missing reset token."}
+        </p>
         <Link to="/forgot-password" className="text-sm underline underline-offset-4">
           Request a new link
         </Link>
@@ -50,15 +79,15 @@ export function ResetPasswordPage() {
       <h1 className="font-head text-2xl uppercase tracking-tight">Choose a new password</h1>
       <Card>
         <CardContent>
-          <form className="flex flex-col gap-4" onSubmit={handleSubmit((values) => mutation.mutate(values))}>
+          <form className="flex flex-col gap-4" onSubmit={onSubmit}>
             <FormField label="New password" error={errors.password?.message}>
               <Input type="password" autoComplete="new-password" {...register("password")} />
             </FormField>
             <FormField label="Confirm new password" error={errors.confirm_password?.message}>
               <Input type="password" autoComplete="new-password" {...register("confirm_password")} />
             </FormField>
-            <Button type="submit" disabled={mutation.isPending}>
-              {mutation.isPending ? "Saving…" : "Save password"}
+            <Button type="submit" disabled={isSubmitting || mutation.isPending}>
+              {isSubmitting || mutation.isPending ? "Saving…" : "Save password"}
             </Button>
           </form>
         </CardContent>

@@ -12,9 +12,9 @@ import { Button } from "@matcha/ui/button";
 import { Card, CardContent } from "@matcha/ui/card";
 import { Input } from "@matcha/ui/input";
 import { useAuth } from "@/features/auth/auth-context";
-import { OAuthButtons } from "@/features/auth/oauth-buttons";
 import { apiErrorMessage } from "@/lib/api-error";
-import { registerFormSchema, type RegisterFormInput } from "@/lib/schemas";
+import { applyFieldProblems, signupFieldProblems } from "@/lib/field-problems";
+import { registerFormSchema, type RegisterFormInput, type RegisterInput } from "@/lib/schemas";
 
 export function RegisterPage() {
   const { register: doRegister } = useAuth();
@@ -24,13 +24,19 @@ export function RegisterPage() {
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    setError,
+    formState: { errors, isSubmitting },
   } = useForm<RegisterFormInput>({ resolver: zodResolver(registerFormSchema) });
 
   const mutation = useMutation({
-    mutationFn: ({ confirm_password: _confirm_password, ...input }: RegisterFormInput) => doRegister(input),
+    mutationFn: (input: RegisterInput) => doRegister(input),
     onSuccess: () => setDone(true),
     onError: (error) => toast.error(apiErrorMessage(error, "Could not create your account")),
+  });
+
+  const onSubmit = handleSubmit(async ({ confirm_password: _confirm_password, ...input }) => {
+    if (applyFieldProblems(await signupFieldProblems(input), setError)) return;
+    mutation.mutate(input);
   });
 
   if (done) {
@@ -68,7 +74,7 @@ export function RegisterPage() {
 
         <Card>
           <CardContent>
-            <form className="flex flex-col gap-4" onSubmit={handleSubmit((values) => mutation.mutate(values))}>
+            <form className="flex flex-col gap-4" onSubmit={onSubmit}>
               <FormField label="Email" error={errors.email?.message}>
                 <Input type="email" autoComplete="email" {...register("email")} />
               </FormField>
@@ -93,14 +99,12 @@ export function RegisterPage() {
                 <Input type="password" autoComplete="new-password" {...register("confirm_password")} />
               </FormField>
 
-              <Button type="submit" disabled={mutation.isPending} className="mt-2">
-                {mutation.isPending ? "Creating…" : "Create account"}
+              <Button type="submit" disabled={isSubmitting || mutation.isPending} className="mt-2">
+                {isSubmitting || mutation.isPending ? "Creating…" : "Create account"}
               </Button>
             </form>
           </CardContent>
         </Card>
-
-        <OAuthButtons />
 
         <p className="text-center text-sm text-muted-foreground">
           Already have an account?{" "}

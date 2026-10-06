@@ -20,6 +20,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Checks any subset of the signup fields (format, password strength, email/username availability) without creating anything. Problems are reported in a 200 response. */
+        post: operations["validateSignupFields"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/verify-email": {
         parameters: {
             query?: never;
@@ -100,6 +117,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/reset-password/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["resetPasswordStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/reset-password": {
         parameters: {
             query?: never;
@@ -110,38 +143,6 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["resetPassword"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/auth/oauth/providers": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["listOAuthProviders"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/auth/oauth/complete": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["completeOAuthSignup"];
         delete?: never;
         options?: never;
         head?: never;
@@ -162,6 +163,23 @@ export interface paths {
         options?: never;
         head?: never;
         patch: operations["updateMe"];
+        trace?: never;
+    };
+    "/api/me/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Checks profile fields (currently the email's format and availability) without saving. Problems are reported in a 200 response. */
+        post: operations["validateMe"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/me/tags": {
@@ -475,8 +493,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** @description Bonus feature -- proposed real-life dates between the current user and a matched peer. */
         get: operations["listDatesWithPeer"];
         put?: never;
+        /** @description Bonus feature -- propose a real-life date. Only works between mutually-connected (matched) users. */
         post: operations["proposeDate"];
         delete?: never;
         options?: never;
@@ -493,6 +513,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** @description Bonus feature -- accept or decline a proposed date (recipient only). */
         post: operations["respondToDate"];
         delete?: never;
         options?: never;
@@ -510,6 +531,7 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
+        /** @description Bonus feature -- cancel a date (either participant). */
         delete: operations["cancelDate"];
         options?: never;
         head?: never;
@@ -524,6 +546,12 @@ export interface components {
             error: string;
             message: string;
             fields?: {
+                [key: string]: string;
+            };
+        };
+        /** @description Pre-check result -- field name -> message, empty when everything is acceptable. */
+        FieldProblems: {
+            fields: {
                 [key: string]: string;
             };
         };
@@ -631,11 +659,17 @@ export interface components {
             first_name: string;
             fame_rating: number;
             photo: string | null;
-            /** @description Present on /me/visitors: when they last viewed this profile. */
+            /**
+             * Format: date-time
+             * @description Present on /me/visitors: when they last viewed this profile.
+             */
             visited_at?: string;
             /** @description Present on /me/visitors: total number of times they've viewed this profile. */
             visit_count?: number;
-            /** @description Present on /me/likers: when they liked this profile. */
+            /**
+             * Format: date-time
+             * @description Present on /me/likers: when they liked this profile.
+             */
             liked_at?: string;
         };
         Conversation: {
@@ -742,6 +776,38 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             409: components["responses"]["Conflict"];
+        };
+    };
+    validateSignupFields: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    email?: string;
+                    username?: string;
+                    first_name?: string;
+                    last_name?: string;
+                    /** Format: date */
+                    birth_date?: string;
+                    password?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Field problems (empty when valid) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FieldProblems"];
+                };
+            };
         };
     };
     verifyEmail: {
@@ -867,6 +933,30 @@ export interface operations {
             };
         };
     };
+    resetPasswordStatus: {
+        parameters: {
+            query: {
+                token: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Whether the reset link can still be used */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        valid: boolean;
+                    };
+                };
+            };
+        };
+    };
     resetPassword: {
         parameters: {
             query?: never;
@@ -891,75 +981,6 @@ export interface operations {
                 content?: never;
             };
             400: components["responses"]["BadRequest"];
-        };
-    };
-    listOAuthProviders: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Configured providers */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        providers: {
-                            id: string;
-                            label: string;
-                        }[];
-                    };
-                };
-            };
-        };
-    };
-    completeOAuthSignup: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    token: string;
-                    username: string;
-                    first_name: string;
-                    last_name: string;
-                    /** Format: date */
-                    birth_date: string;
-                    /** @description Only required if the provider didn't supply one */
-                    email?: string;
-                };
-            };
-        };
-        responses: {
-            /** @description Account created and logged in */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        access_token: string;
-                        refresh_token: string;
-                    };
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            /** @description Username already taken */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
         };
     };
     getMe: {
@@ -1009,6 +1030,32 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Me"];
+                };
+            };
+        };
+    };
+    validateMe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    email?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Field problems (empty when valid) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FieldProblems"];
                 };
             };
         };

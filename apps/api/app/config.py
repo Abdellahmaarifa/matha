@@ -15,20 +15,7 @@ class Config:
     FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173")
     API_BASE_URL = os.environ.get("API_BASE_URL", "http://localhost:8000")
 
-    SMTP_HOST = os.environ.get("SMTP_HOST", "")
-    SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
-    SMTP_USER = os.environ.get("SMTP_USER", "")
-    SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
-    MAIL_FROM = os.environ.get("MAIL_FROM", "no-reply@matcha.local")
-    MAIL_MODE = os.environ.get("MAIL_MODE", "console")  # "console" | "smtp"
-
-    # OAuth (bonus feature): each provider is only offered to the frontend
-    # (GET /api/auth/oauth/providers) if both its CLIENT_ID and CLIENT_SECRET
-    # are set -- unconfigured providers are silently skipped, not errors.
-    GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
-    GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
-    GITHUB_CLIENT_ID = os.environ.get("GITHUB_CLIENT_ID", "")
-    GITHUB_CLIENT_SECRET = os.environ.get("GITHUB_CLIENT_SECRET", "")
-    FT_CLIENT_ID = os.environ.get("FT_CLIENT_ID", "")
-    FT_CLIENT_SECRET = os.environ.get("FT_CLIENT_SECRET", "")
-    OAUTH_SIGNUP_TTL_MIN = int(os.environ.get("OAUTH_SIGNUP_TTL_MIN", "15"))
+    # All outgoing mail goes through Resend (https://resend.com). MAIL_FROM must
+    # use a domain verified in Resend, or "onboarding@resend.dev" for testing.
+    RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
+    MAIL_FROM = os.environ.get("MAIL_FROM", "Matcha <onboarding@resend.dev>")

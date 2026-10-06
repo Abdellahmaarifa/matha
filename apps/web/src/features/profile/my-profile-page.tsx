@@ -1,4 +1,5 @@
 import { LogOut, TriangleAlert } from "lucide-react";
+import { useCallback, useRef, useState } from "react";
 
 import { useLikers, useMe, useVisitors } from "@matcha/api-client/hooks";
 import { Button } from "@matcha/ui/button";
@@ -8,13 +9,27 @@ import { EditProfileForm } from "@/features/profile/edit-profile-form";
 import { LocationEditor } from "@/features/profile/location-editor";
 import { PeopleList } from "@/features/profile/people-list";
 import { PhotosManager } from "@/features/profile/photos-manager";
+import { useProfileNudge } from "@/features/profile/profile-nudge";
 import { TagsEditor } from "@/features/profile/tags-editor";
+import { cn } from "@/lib/utils";
 
 export function MyProfilePage() {
   const { data: me, isPending } = useMe();
   const { data: visitors } = useVisitors();
   const { data: likers } = useLikers();
   const { logout } = useAuth();
+  const [tab, setTab] = useState("profile");
+  const [nudgeCount, setNudgeCount] = useState(0);
+  const bannerRef = useRef<HTMLDivElement>(null);
+
+  // A locked menu item was clicked: bring the "finish your profile" banner
+  // into view and shake it. Bumping the count remounts it, replaying the shake.
+  const onNudge = useCallback(() => {
+    setTab("profile");
+    setNudgeCount((n) => n + 1);
+    requestAnimationFrame(() => bannerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }));
+  }, []);
+  useProfileNudge(onNudge);
 
   if (isPending || !me) return <p className="p-4 text-sm text-muted-foreground">Loading…</p>;
 
@@ -26,7 +41,7 @@ export function MyProfilePage() {
   ].filter((v): v is string => v !== null);
 
   return (
-    <Tabs defaultValue="profile" className="gap-0 lg:mx-auto lg:max-w-5xl lg:px-6 lg:py-6">
+    <Tabs value={tab} onValueChange={setTab} className="gap-0 lg:mx-auto lg:max-w-5xl lg:px-6 lg:py-6">
       <TabsList className="w-full justify-start rounded-none border-b-2 border-border bg-transparent px-2">
         <TabsTrigger value="profile">Profile</TabsTrigger>
         <TabsTrigger value="visitors">Visitors</TabsTrigger>
@@ -38,8 +53,18 @@ export function MyProfilePage() {
           <p className="text-sm font-medium">@{me.username}</p>
         </div>
         {!me.profile_complete ? (
-          <div className="mx-4 mt-3 flex items-start gap-2.5 rounded border-2 border-border bg-accent px-3 py-2.5 text-sm">
-            <TriangleAlert className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+          <div
+            key={nudgeCount}
+            ref={bannerRef}
+            role="alert"
+            className={cn(
+              "mx-4 mt-3 flex items-start gap-2.5 rounded border-2 border-border bg-accent px-3 py-2.5 text-sm transition-shadow",
+              nudgeCount > 0 && "animate-shake shadow-md ring-2 ring-destructive",
+            )}
+          >
+            <TriangleAlert
+              className={cn("mt-0.5 size-4 shrink-0", nudgeCount > 0 ? "text-destructive" : "text-muted-foreground")}
+            />
             <p>
               Finish your profile to start browsing and matching -- you still need: {missing.join(", ")}.
             </p>

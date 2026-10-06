@@ -10,10 +10,10 @@ export const Route = createFileRoute("/_authenticated/chat/")({
 function ChatIndexPage() {
   return (
     <>
-      <div className="lg:hidden">
+      <div className="min-h-0 flex-1 overflow-y-auto lg:hidden">
         <ConversationsList />
       </div>
-      <div className="hidden h-full flex-col items-center justify-center gap-2 p-8 text-center lg:flex">
+      <div className="hidden flex-1 flex-col items-center justify-center gap-2 p-8 text-center lg:flex">
         <p className="font-head text-lg uppercase tracking-tight">Your messages</p>
         <p className="text-sm text-muted-foreground">Select a conversation to start chatting.</p>
       </div>

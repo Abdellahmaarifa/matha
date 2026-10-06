@@ -24,6 +24,30 @@ def register():
     return jsonify(user), 201
 
 
+@bp.post("/validate")
+def validate():
+    """Pre-checks any subset of the signup fields (format, password strength,
+    email/username availability) and reports problems in a 200 response, so
+    forms can show them before submitting. The real endpoints still enforce
+    every rule and answer 400/409 when called with bad data."""
+    body = request.get_json(silent=True) or {}
+    v = Validator(body)
+    if "email" in body:
+        v.email()
+    if "username" in body:
+        v.username()
+    if "first_name" in body:
+        v.required_str("first_name", pattern=NAME_RE, max_len=60, label="First name")
+    if "last_name" in body:
+        v.required_str("last_name", pattern=NAME_RE, max_len=60, label="Last name")
+    if "birth_date" in body:
+        v.birth_date()
+    if "password" in body:
+        v.password()
+    conflicts = service.signup_conflicts(v.clean.get("email"), v.clean.get("username"))
+    return jsonify({"fields": {**conflicts, **v.errors}})
+
+
 @bp.get("/verify-email")
 def verify_email():
     token = request.args.get("token", "")
@@ -76,6 +100,11 @@ def forgot_password():
     v.raise_if_invalid()
     service.forgot_password(v.clean["email"])
     return jsonify({"status": "ok"})
+
+
+@bp.get("/reset-password/status")
+def reset_password_status():
+    return jsonify({"valid": service.reset_token_valid(request.args.get("token", ""))})
 
 
 @bp.post("/reset-password")

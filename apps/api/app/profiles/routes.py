@@ -29,6 +29,20 @@ def patch_me():
     return jsonify(service.update_profile(g.user_id, v.clean))
 
 
+@bp.post("/me/validate")
+@require_auth
+def validate_me():
+    """Pre-check for the edit-profile form (see auth.validate): reports an
+    email another account holds as a 200 instead of failing PATCH /me with 409."""
+    body = request.get_json(silent=True) or {}
+    v = Validator(body)
+    v.email("email", required=False)
+    fields = dict(v.errors)
+    if "email" in v.clean and service.email_taken(g.user_id, v.clean["email"]):
+        fields["email"] = "An account with this email already exists"
+    return jsonify({"fields": fields})
+
+
 @bp.put("/me/tags")
 @require_auth
 def put_tags():

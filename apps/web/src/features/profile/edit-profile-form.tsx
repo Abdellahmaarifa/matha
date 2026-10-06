@@ -11,6 +11,7 @@ import { Input } from "@matcha/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@matcha/ui/select";
 import { Textarea } from "@matcha/ui/textarea";
 import { apiErrorMessage } from "@/lib/api-error";
+import { applyFieldProblems, profileFieldProblems } from "@/lib/field-problems";
 import { editProfileSchema, GENDERS, ORIENTATIONS, type EditProfileInput } from "@/lib/schemas";
 
 type Me = components["schemas"]["Me"];
@@ -24,7 +25,8 @@ export function EditProfileForm({ me }: { me: Me }) {
     watch,
     setValue,
     reset,
-    formState: { errors, isDirty },
+    setError,
+    formState: { errors, isDirty, isSubmitting },
   } = useForm<EditProfileInput>({
     resolver: zodResolver(editProfileSchema),
     defaultValues: {
@@ -48,7 +50,10 @@ export function EditProfileForm({ me }: { me: Me }) {
     });
   }, [me, reset]);
 
-  const onSubmit = handleSubmit((values) => {
+  const onSubmit = handleSubmit(async (values) => {
+    if (values.email !== me.email && applyFieldProblems(await profileFieldProblems({ email: values.email }), setError)) {
+      return;
+    }
     updateMe.mutate(values, {
       onSuccess: () => toast.success("Profile updated"),
       onError: (error) => toast.error(apiErrorMessage(error, "Could not update profile")),
@@ -108,8 +113,8 @@ export function EditProfileForm({ me }: { me: Me }) {
         <Textarea rows={4} {...register("biography")} />
       </FormField>
 
-      <Button type="submit" disabled={!isDirty || updateMe.isPending} className="self-start">
-        {updateMe.isPending ? "Saving…" : "Save changes"}
+      <Button type="submit" disabled={!isDirty || isSubmitting || updateMe.isPending} className="self-start">
+        {isSubmitting || updateMe.isPending ? "Saving…" : "Save changes"}
       </Button>
     </form>
   );

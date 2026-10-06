@@ -11,7 +11,6 @@ import { Button } from "@matcha/ui/button";
 import { Card, CardContent } from "@matcha/ui/card";
 import { Input } from "@matcha/ui/input";
 import { useAuth } from "@/features/auth/auth-context";
-import { OAuthButtons } from "@/features/auth/oauth-buttons";
 import { apiErrorMessage } from "@/lib/api-error";
 import { loginSchema, type LoginInput } from "@/lib/schemas";
 
@@ -70,8 +69,6 @@ export function LoginPage() {
             </form>
           </CardContent>
         </Card>
-
-        <OAuthButtons />
 
         <p className="text-center text-sm text-muted-foreground">
           New here?{" "}

@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
-import { api } from "@matcha/api-client/client";
+import { SESSION_EXPIRED_EVENT, api, hasUsableSession } from "@matcha/api-client/client";
 import { tokenStore } from "@matcha/api-client/tokens";
 import type { LoginInput, RegisterInput } from "@/lib/schemas";
 
@@ -10,15 +10,22 @@ interface AuthContextValue {
   login: (input: LoginInput) => Promise<void>;
   register: (input: RegisterInput) => Promise<void>;
   logout: () => Promise<void>;
-  /** Finishes an OAuth sign-in: tokens already came from the backend redirect. */
-  completeOAuth: (accessToken: string, refreshToken: string) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(() => Boolean(tokenStore.getAccess()));
+  const [isAuthenticated, setIsAuthenticated] = useState(hasUsableSession);
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    function onSessionExpired() {
+      setIsAuthenticated(false);
+      queryClient.clear();
+    }
+    window.addEventListener(SESSION_EXPIRED_EVENT, onSessionExpired);
+    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, onSessionExpired);
+  }, [queryClient]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -32,10 +39,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       async register(input) {
         const { error } = await api.POST("/api/auth/register", { body: input });
         if (error) throw error;
-      },
-      completeOAuth(accessToken, refreshToken) {
-        tokenStore.set(accessToken, refreshToken);
-        setIsAuthenticated(true);
       },
       async logout() {
         try {

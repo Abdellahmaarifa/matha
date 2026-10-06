@@ -1,10 +1,10 @@
 import { Flag, Heart, MessageCircle, ShieldOff } from "lucide-react";
 import { useState } from "react";
-import { useNavigate, useParams } from "@tanstack/react-router";
+import { Navigate, useNavigate, useParams } from "@tanstack/react-router";
 import { toast } from "sonner";
 
 import { photoUrl } from "@matcha/api-client/client";
-import { useBlockUser, useLikeUser, useReportUser, useUnlikeUser, useUserProfile } from "@matcha/api-client/hooks";
+import { useBlockUser, useLikeUser, useMe, useReportUser, useUnlikeUser, useUserProfile } from "@matcha/api-client/hooks";
 import { Avatar, AvatarFallback, AvatarImage } from "@matcha/ui/avatar";
 import { Badge } from "@matcha/ui/badge";
 import { Button } from "@matcha/ui/button";
@@ -24,6 +24,8 @@ export function PublicProfilePage() {
   const { userId } = useParams({ from: "/_authenticated/users/$userId" });
   const id = Number(userId);
   const navigate = useNavigate();
+  const { data: me } = useMe();
+  const isSelf = me?.id === id;
   const { data: profile, isPending, isError } = useUserProfile(id);
 
   const like = useLikeUser();
@@ -32,6 +34,8 @@ export function PublicProfilePage() {
   const report = useReportUser();
   const [reportOpen, setReportOpen] = useState(false);
 
+  // Like/block/report on yourself are rejected by the API -- your own page has none of them.
+  if (isSelf) return <Navigate to="/profile" replace />;
   if (isPending) return <p className="p-4 text-sm text-muted-foreground">Loading…</p>;
   if (isError || !profile) return <p className="p-4 text-sm text-destructive">Profile not found.</p>;
 

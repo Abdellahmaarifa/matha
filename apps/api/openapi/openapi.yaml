@@ -49,6 +49,13 @@ components:
         fields: { type: object, additionalProperties: { type: string } }
       required: [error, message]
 
+    FieldProblems:
+      type: object
+      description: Pre-check result -- field name -> message, empty when everything is acceptable.
+      properties:
+        fields: { type: object, additionalProperties: { type: string } }
+      required: [fields]
+
     Photo:
       type: object
       properties:
@@ -228,6 +235,30 @@ paths:
         "400": { $ref: "#/components/responses/BadRequest" }
         "409": { $ref: "#/components/responses/Conflict" }
 
+  /api/auth/validate:
+    post:
+      operationId: validateSignupFields
+      description: Checks any subset of the signup fields (format, password strength, email/username availability) without creating anything. Problems are reported in a 200 response.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email: { type: string }
+                username: { type: string }
+                first_name: { type: string }
+                last_name: { type: string }
+                birth_date: { type: string, format: date }
+                password: { type: string }
+      responses:
+        "200":
+          description: Field problems (empty when valid)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FieldProblems" }
+
   /api/auth/verify-email:
     get:
       operationId: verifyEmail
@@ -309,6 +340,24 @@ paths:
       responses:
         "200": { description: OK (always, to avoid leaking account existence) }
 
+  /api/auth/reset-password/status:
+    get:
+      operationId: resetPasswordStatus
+      parameters:
+        - in: query
+          name: token
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Whether the reset link can still be used
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: { valid: { type: boolean } }
+                required: [valid]
+
   /api/auth/reset-password:
     post:
       operationId: resetPassword
@@ -325,60 +374,6 @@ paths:
       responses:
         "200": { description: OK }
         "400": { $ref: "#/components/responses/BadRequest" }
-
-  /api/auth/oauth/providers:
-    get:
-      operationId: listOAuthProviders
-      description: Third-party login strategies currently configured (bonus feature). GET /api/auth/oauth/{id} starts that provider's flow with a full-page redirect.
-      responses:
-        "200":
-          description: Configured providers
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  providers:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        id: { type: string }
-                        label: { type: string }
-                      required: [id, label]
-                required: [providers]
-
-  /api/auth/oauth/complete:
-    post:
-      operationId: completeOAuthSignup
-      description: Finishes a brand-new OAuth signup with the fields the provider didn't give us (e.g. birth_date). `token` is the short-lived signup token the callback redirect handed to /oauth/complete-signup.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                token: { type: string }
-                username: { type: string }
-                first_name: { type: string }
-                last_name: { type: string }
-                birth_date: { type: string, format: date }
-                email: { type: string, description: "Only required if the provider didn't supply one" }
-              required: [token, username, first_name, last_name, birth_date]
-      responses:
-        "201":
-          description: Account created and logged in
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  access_token: { type: string }
-                  refresh_token: { type: string }
-                required: [access_token, refresh_token]
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "409": { description: Username already taken }
 
   /api/me:
     get:
@@ -411,6 +406,25 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Me" }
+
+  /api/me/validate:
+    post:
+      operationId: validateMe
+      description: Checks profile fields (currently the email's format and availability) without saving. Problems are reported in a 200 response.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties: { email: { type: string } }
+      responses:
+        "200":
+          description: Field problems (empty when valid)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FieldProblems" }
 
   /api/me/tags:
     put:

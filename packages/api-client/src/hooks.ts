@@ -199,7 +199,19 @@ export function useBlockUser() {
       const { error } = await api.POST("/api/users/{userId}/block", { params: { path: { userId } } });
       if (error) throw error;
     },
-    onSuccess: (_data, userId) => invalidateProfileQueries(queryClient, userId),
+    onSuccess: (_data, userId) => {
+      // Everything about a blocked user now answers 404: mark it stale without
+      // refetching, since the page showing it is about to navigate away.
+      for (const key of ["user", "messages", "dates"]) {
+        queryClient.invalidateQueries({ queryKey: [key, userId], refetchType: "none" });
+      }
+      queryClient.invalidateQueries({ queryKey: ["browse"] });
+      queryClient.invalidateQueries({ queryKey: ["search"] });
+      queryClient.invalidateQueries({ queryKey: ["likers"] });
+      queryClient.invalidateQueries({ queryKey: ["visitors"] });
+      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      queryClient.invalidateQueries({ queryKey: ["me"] });
+    },
   });
 }
 
@@ -250,7 +262,9 @@ export function useConversations() {
   });
 }
 
-export function useMessages(peerId: number) {
+/** `enabled` lets the chat stop polling a thread that's no longer open to the
+ * user (unmatched or blocked), which the API would answer with an error. */
+export function useMessages(peerId: number, enabled = true) {
   return useQuery({
     queryKey: ["messages", peerId],
     queryFn: async () => {
@@ -260,7 +274,7 @@ export function useMessages(peerId: number) {
       if (error) throw error;
       return data;
     },
-    enabled: Number.isFinite(peerId),
+    enabled: enabled && Number.isFinite(peerId),
     refetchInterval: 3000,
   });
 }
@@ -286,7 +300,7 @@ export function useSendMessage(peerId: number) {
 export type ProposeDateInput = operations["proposeDate"]["requestBody"]["content"]["application/json"];
 
 // Bonus feature: schedule/organize real-life dates between matched users.
-export function useDates(peerId: number) {
+export function useDates(peerId: number, enabled = true) {
   return useQuery({
     queryKey: ["dates", peerId],
     queryFn: async () => {
@@ -294,7 +308,7 @@ export function useDates(peerId: number) {
       if (error) throw error;
       return data;
     },
-    enabled: Number.isFinite(peerId),
+    enabled: enabled && Number.isFinite(peerId),
   });
 }
 

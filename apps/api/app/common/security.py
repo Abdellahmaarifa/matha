@@ -33,25 +33,6 @@ def issue_refresh_token(user_id: int) -> str:
     return _encode(user_id, "refresh", ttl)
 
 
-def issue_oauth_signup_token(provider: str, provider_uid: str, email: str, first_name: str, last_name: str) -> str:
-    """Short-lived token carrying an unfinished OAuth signup (no `sub`/user id yet --
-    the account isn't created until the frontend submits the missing required
-    fields, e.g. birth_date, that the provider doesn't reliably give us)."""
-    now = dt.datetime.now(dt.timezone.utc)
-    ttl = dt.timedelta(minutes=current_app.config["OAUTH_SIGNUP_TTL_MIN"])
-    payload = {
-        "type": "oauth_signup",
-        "provider": provider,
-        "provider_uid": provider_uid,
-        "email": email,
-        "first_name": first_name,
-        "last_name": last_name,
-        "iat": now,
-        "exp": now + ttl,
-    }
-    return jwt.encode(payload, current_app.config["SECRET_KEY"], algorithm="HS256")
-
-
 def decode_token(token: str) -> dict:
     try:
         return jwt.decode(token, current_app.config["SECRET_KEY"], algorithms=["HS256"])

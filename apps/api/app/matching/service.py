@@ -178,13 +178,26 @@ def browse(viewer_id: int, filters: dict, sort: str | None, offset: int = 0) -> 
         direction = "DESC" if order_col in ("fame_rating", "shared_tags") else "ASC"
         order_by = f"{order_col} {direction} NULLS LAST"
     else:
-        # default suggestion ranking: same area first, then shared tags, then fame
-        order_by = "(distance_km IS NULL) ASC, distance_km ASC NULLS LAST, shared_tags DESC, fame_rating DESC"
+        # Default suggestion ranking: one weighted score, so all three criteria
+        # actually move the order (a plain "distance, then tags, then fame" ORDER BY
+        # almost never reaches the tie-breakers, since distances are never equal).
+        # Each part is normalized to 0..1 before weighting:
+        #   proximity   = 1 / (1 + km/10)   -> 1 at 0 km, 0.5 at 10 km, 0 if unknown
+        #   tag_overlap = shared / viewer's tag count
+        #   fame        = fame_rating / 100
+        order_by = (
+            "(0.5 * COALESCE(1.0 / (1.0 + distance_km / 10.0), 0)"
+            " + 0.3 * shared_tags::float / GREATEST(1, %(viewer_tag_count)s)"
+            " + 0.2 * fame_rating / 100.0) DESC, distance_km ASC NULLS LAST"
+        )
+        params["viewer_tag_count"] = query_one(
+            "SELECT count(*) AS n FROM user_tags WHERE user_id = %s", (viewer_id,)
+        )["n"]
 
     # ORDER BY must run against the materialized column list (not just an aliased
     # expression in the SELECT list), so wrap in a subquery: Postgres only resolves
     # a SELECT-list alias in ORDER BY when it's a bare item, not inside an expression
-    # like "(distance_km IS NULL)".
+    # like the weighted score above.
     sql = f"SELECT * FROM ({base_sql}) AS candidates ORDER BY {order_by} LIMIT %(limit)s OFFSET %(offset)s"
     params["limit"] = PAGE_SIZE
     params["offset"] = offset

@@ -9,8 +9,20 @@ import "@/index.css";
 
 import { routeTree } from "./routeTree.gen";
 
+// A query that failed because the API answered with an error (4xx/5xx) gets
+// the same answer if retried -- only retry network failures, so a single
+// error never turns into a second one in the console.
+function isApiError(error: unknown): boolean {
+  return typeof error === "object" && error !== null && "error" in error;
+}
+
 const queryClient = new QueryClient({
-  defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
+  defaultOptions: {
+    queries: {
+      retry: (failureCount, error) => failureCount < 1 && !isApiError(error),
+      refetchOnWindowFocus: false,
+    },
+  },
 });
 
 const router = createRouter({ routeTree });

@@ -11,18 +11,13 @@ def create_app() -> Flask:
     app = Flask(__name__)
     app.config.from_object(Config)
     # Flask's logger defaults to WARNING outside debug mode, which silently drops
-    # the app.logger.info(...) calls mail.py uses to print dev-mode "emails" --
-    # without this, MAIL_MODE=console produces no output at all.
+    # app.logger.info(...) calls.
     app.logger.setLevel(logging.INFO)
 
     init_pool(app)
     register_error_handlers(app)
     _register_cors(app)
     _register_blueprints(app)
-
-    from app.oauth.client import init_oauth
-
-    init_oauth(app)
 
     @app.get("/api/health")
     def health():
@@ -56,12 +51,10 @@ def _register_blueprints(app: Flask) -> None:
     from app.dates.routes import bp as dates_bp
     from app.matching.routes import bp as matching_bp
     from app.notifications.routes import bp as notifications_bp
-    from app.oauth.routes import bp as oauth_bp
     from app.photos.routes import bp as photos_bp
     from app.profiles.routes import bp as profiles_bp
 
     app.register_blueprint(auth_bp)
-    app.register_blueprint(oauth_bp)
     app.register_blueprint(profiles_bp)
     app.register_blueprint(matching_bp)
     app.register_blueprint(chat_bp)

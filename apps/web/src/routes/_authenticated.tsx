@@ -1,5 +1,6 @@
 import { Outlet, createFileRoute, redirect, useMatches } from "@tanstack/react-router";
 
+import { hasUsableSession } from "@matcha/api-client/client";
 import { tokenStore } from "@matcha/api-client/tokens";
 import { MobileShell } from "@/components/layout/mobile-shell";
 import { ProtectedRoute } from "@/features/auth/protected-route";
@@ -8,7 +9,8 @@ export const Route = createFileRoute("/_authenticated")({
   // Redirect before anything renders: doing it from inside the component
   // (<Navigate> during render) loops forever on the first page load.
   beforeLoad: () => {
-    if (!tokenStore.getAccess()) {
+    if (!hasUsableSession()) {
+      tokenStore.clear();
       throw redirect({ to: "/login", replace: true });
     }
   },
@@ -18,10 +20,11 @@ export const Route = createFileRoute("/_authenticated")({
 function AuthenticatedLayout() {
   const matches = useMatches();
   const title = [...matches].reverse().find((match) => match.staticData?.title)?.staticData?.title ?? "";
+  const fullHeight = matches.some((match) => match.staticData?.fullHeight);
 
   return (
     <ProtectedRoute>
-      <MobileShell title={title}>
+      <MobileShell title={title} fullHeight={fullHeight}>
         <Outlet />
       </MobileShell>
     </ProtectedRoute>

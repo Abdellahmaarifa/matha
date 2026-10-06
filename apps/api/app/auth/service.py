@@ -11,15 +11,27 @@ VERIFICATION_TTL = dt.timedelta(hours=24)
 RESET_TTL = dt.timedelta(hours=1)
 
 
-def register(email: str, username: str, first_name: str, last_name: str, birth_date, password: str) -> dict:
-    existing = query_one("SELECT id, is_verified FROM users WHERE email = %s", (email,))
+def signup_conflicts(email: str | None, username: str | None) -> dict[str, str]:
+    """Field -> message for an email/username another account already holds.
+    Shared by register() and the /validate pre-check so the form can show
+    these before submitting instead of the submit failing with a 409."""
+    conflicts: dict[str, str] = {}
+    existing = query_one("SELECT id, is_verified FROM users WHERE email = %s", (email,)) if email else None
     if existing and existing["is_verified"]:
-        raise conflict("An account with this email already exists")
-    if query_one(
+        conflicts["email"] = "An account with this email already exists"
+    if username and query_one(
         "SELECT id FROM users WHERE username = %s AND id != %s",
         (username, existing["id"] if existing else -1),
     ):
-        raise conflict("This username is already taken")
+        conflicts["username"] = "This username is already taken"
+    return conflicts
+
+
+def register(email: str, username: str, first_name: str, last_name: str, birth_date, password: str) -> dict:
+    conflicts = signup_conflicts(email, username)
+    if conflicts:
+        raise conflict(next(iter(conflicts.values())))
+    existing = query_one("SELECT id FROM users WHERE email = %s", (email,))
 
     token = secrets.token_urlsafe(32)
     expires = dt.datetime.now(dt.timezone.utc) + VERIFICATION_TTL
@@ -54,16 +66,19 @@ def register(email: str, username: str, first_name: str, last_name: str, birth_d
 
 def verify_email(token: str) -> None:
     user = query_one(
-        "SELECT id, verification_expires FROM users WHERE verification_token = %s",
+        "SELECT id, is_verified, verification_expires FROM users WHERE verification_token = %s",
         (token,),
     )
     if not user:
         raise bad_request("Invalid verification link")
+    # The token is kept after use so opening the link a second time (mail
+    # clients prefetching it, a double click) reports success instead of an error.
+    if user["is_verified"]:
+        return
     if user["verification_expires"] < dt.datetime.now(dt.timezone.utc):
         raise bad_request("Verification link has expired")
     execute(
-        "UPDATE users SET is_verified = TRUE, verification_token = NULL, verification_expires = NULL "
-        "WHERE id = %s",
+        "UPDATE users SET is_verified = TRUE, verification_expires = NULL WHERE id = %s",
         (user["id"],),
     )
 
@@ -122,9 +137,20 @@ def forgot_password(email: str) -> None:
     send_reset_email(email, token)
 
 
-def reset_password(token: str, new_password: str) -> None:
+def _valid_reset_user(token: str) -> dict | None:
     user = query_one("SELECT id, reset_expires FROM users WHERE reset_token = %s", (token,))
     if not user or user["reset_expires"] < dt.datetime.now(dt.timezone.utc):
+        return None
+    return user
+
+
+def reset_token_valid(token: str) -> bool:
+    return _valid_reset_user(token) is not None
+
+
+def reset_password(token: str, new_password: str) -> None:
+    user = _valid_reset_user(token)
+    if not user:
         raise bad_request("Invalid or expired reset link")
     execute(
         "UPDATE users SET password_hash = %s, reset_token = NULL, reset_expires = NULL WHERE id = %s",

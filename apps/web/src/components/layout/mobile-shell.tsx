@@ -1,10 +1,14 @@
 import { Link } from "@tanstack/react-router";
 import { Bell, LogOut, Map, MessageCircle, Search, User, Users } from "lucide-react";
-import type { ReactNode } from "react";
+import type { MouseEvent, ReactNode } from "react";
 
-import { useNotifications } from "@matcha/api-client/hooks";
+import { cn } from "@/lib/utils";
+
+import { useMe, useNotifications } from "@matcha/api-client/hooks";
 import logo from "@/assets/logo.png";
 import { useAuth } from "@/features/auth/auth-context";
+import { useNewMessageAlerts } from "@/features/chat/use-new-message-alerts";
+import { nudgeIncompleteProfile } from "@/features/profile/profile-nudge";
 
 const TABS = [
   { to: "/", label: "Discover", icon: Users, exact: true },
@@ -15,10 +19,32 @@ const TABS = [
   { to: "/profile", label: "Me", icon: User, exact: false },
 ] as const;
 
-export function MobileShell({ title, children }: { title: string; children: ReactNode }) {
+export function MobileShell({
+  title,
+  fullHeight = false,
+  children,
+}: {
+  title: string;
+  fullHeight?: boolean;
+  children: ReactNode;
+}) {
   const { data } = useNotifications();
   const { logout } = useAuth();
-  const unread = data?.unread_count ?? 0;
+  const { data: me } = useMe();
+  const unreadMessages = useNewMessageAlerts();
+  const unreadAlerts = data?.unread_count ?? 0;
+  const badgeFor = (to: string) =>
+    to === "/chat" ? unreadMessages : to === "/notifications" ? unreadAlerts : 0;
+  // Until the profile is complete every page but /profile is off limits
+  // (ProtectedRoute redirects back). Block those links up front and point the
+  // user at what's missing instead of letting them bounce.
+  const profileIncomplete = !!me && !me.profile_complete;
+  const isLocked = (to: string) => profileIncomplete && to !== "/profile";
+  const onTabClick = (to: string) => (event: MouseEvent) => {
+    if (!isLocked(to)) return;
+    event.preventDefault();
+    nudgeIncompleteProfile();
+  };
 
   return (
     <div className="mx-auto flex h-dvh w-full max-w-md flex-col border-x-2 border-border bg-background sm:max-w-lg md:max-w-2xl lg:max-w-none lg:flex-row lg:border-x-0">
@@ -33,16 +59,18 @@ export function MobileShell({ title, children }: { title: string; children: Reac
               <Link
                 to={to}
                 activeOptions={{ exact }}
-                className="relative flex items-center gap-3 rounded border-2 border-transparent px-3 py-2.5 font-head text-sm text-muted-foreground transition-colors hover:text-foreground"
+                onClick={onTabClick(to)}
+                aria-disabled={isLocked(to) || undefined}
+                className="relative flex items-center gap-3 aria-disabled:opacity-50 rounded border-2 border-transparent px-3 py-2.5 font-head text-sm text-muted-foreground transition-colors hover:text-foreground"
                 activeProps={{
                   className: "border-border bg-primary text-primary-foreground shadow-xs",
                 }}
               >
                 <Icon className="size-5" strokeWidth={2} />
                 {label}
-                {to === "/notifications" && unread > 0 ? (
+                {badgeFor(to) > 0 ? (
                   <span className="ml-auto flex size-5 items-center justify-center rounded-full border-2 border-border bg-destructive text-[10px] text-destructive-foreground">
-                    {unread > 9 ? "9+" : unread}
+                    {badgeFor(to) > 9 ? "9+" : badgeFor(to)}
                   </span>
                 ) : null}
               </Link>
@@ -61,7 +89,7 @@ export function MobileShell({ title, children }: { title: string; children: Reac
       </nav>
 
       <div className="flex h-full min-h-0 flex-1 flex-col lg:min-w-0">
-        <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b-2 border-border bg-background px-4">
+        <header className="z-10 flex h-16 shrink-0 items-center justify-between border-b-2 border-border bg-background px-4">
           <h1 className="font-head text-lg uppercase tracking-tight">{title}</h1>
           {/* Subject requirement: "users must be able to log out with a single
               click from any page on the site." The lg: sidebar already covers
@@ -76,25 +104,27 @@ export function MobileShell({ title, children }: { title: string; children: Reac
           </button>
         </header>
 
-        <main className="min-h-0 flex-1 overflow-y-auto pb-24 lg:pb-6">{children}</main>
+        <main className={cn("min-h-0 flex-1", fullHeight ? "overflow-hidden" : "overflow-y-auto pb-6")}>{children}</main>
 
-        <nav className="fixed bottom-0 left-1/2 z-10 w-full max-w-md -translate-x-1/2 border-t-2 border-border bg-background sm:max-w-lg md:max-w-2xl lg:hidden">
+        <nav className="shrink-0 border-t-2 border-border bg-background lg:hidden">
           <ul className="grid grid-cols-6 gap-1.5 p-1.5">
             {TABS.map(({ to, label, icon: Icon, exact }) => (
               <li key={to}>
                 <Link
                   to={to}
                   activeOptions={{ exact }}
-                  className="relative flex flex-col items-center gap-1 rounded border-2 border-transparent py-2 text-[11px] font-head text-muted-foreground transition-colors hover:text-foreground"
+                  onClick={onTabClick(to)}
+                  aria-disabled={isLocked(to) || undefined}
+                  className="relative flex flex-col items-center aria-disabled:opacity-50 gap-1 rounded border-2 border-transparent py-2 text-[11px] font-head text-muted-foreground transition-colors hover:text-foreground"
                   activeProps={{
                     className: "border-border bg-primary text-primary-foreground shadow-xs",
                   }}
                 >
                   <Icon className="size-5" strokeWidth={2} />
                   {label}
-                  {to === "/notifications" && unread > 0 ? (
+                  {badgeFor(to) > 0 ? (
                     <span className="absolute right-4 top-0.5 flex size-4 items-center justify-center rounded-full border-2 border-border bg-destructive text-[9px] text-destructive-foreground">
-                      {unread > 9 ? "9+" : unread}
+                      {badgeFor(to) > 9 ? "9+" : badgeFor(to)}
                     </span>
                   ) : null}
                 </Link>

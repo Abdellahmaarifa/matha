@@ -4,6 +4,8 @@ import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 declare module "@tanstack/react-router" {
   interface StaticDataRouteOption {
     title?: string;
+    /** Page fills the viewport and manages its own scrolling (e.g. chat). */
+    fullHeight?: boolean;
   }
 }
 

@@ -31,25 +31,6 @@ export const registerSchema = z.object({
 });
 export type RegisterInput = z.infer<typeof registerSchema>;
 
-const birthDateSchema = z.string().refine((value) => {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return false;
-  const age = (Date.now() - date.getTime()) / (365.25 * 24 * 3600 * 1000);
-  return age >= 18 && age <= 120;
-}, "You must be at least 18");
-
-// OAuth signups skip the password field (the provider handles authentication)
-// but still need everything else a normal registration collects.
-export const completeOAuthSignupSchema = z.object({
-  token: z.string().min(1),
-  username: z.string().regex(usernamePattern, "3-20 letters, digits or underscore"),
-  first_name: z.string().min(1, "Required").max(60).regex(namePattern, "No digits allowed"),
-  last_name: z.string().min(1, "Required").max(60).regex(namePattern, "No digits allowed"),
-  birth_date: birthDateSchema,
-  email: z.string().email("Enter a valid email").optional(),
-});
-export type CompleteOAuthSignupInput = z.infer<typeof completeOAuthSignupSchema>;
-
 // Form-only schema (adds a confirm-password field that never reaches the API --
 // registerSchema/RegisterInput above stay the exact API payload shape).
 export const registerFormSchema = registerSchema

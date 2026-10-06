@@ -93,11 +93,12 @@ them to see the app from different angles.)
 ## 4. Try it in the browser
 
 1. Open http://localhost:5173.
-2. **Register a real account** to test the full flow: register → check the
-   API container logs for the verification email (`MAIL_MODE=console` by
-   default, so emails are printed to stdout instead of actually sent —
-   `docker compose logs -f api`) → copy the verification link into your
-   browser → log in.
+2. **Register a real account** to test the full flow: register → open the
+   verification email in your inbox → click the link → log in. Emails are
+   sent through [Resend](https://resend.com), so `.env` needs
+   `RESEND_API_KEY` and a `MAIL_FROM` on a domain verified in Resend (with
+   the test sender `onboarding@resend.dev`, Resend only delivers to your own
+   account's email address).
 3. On **Profile**, fill in gender/orientation/bio, add 3+ tags, upload 1-2
    photos (first one becomes your profile picture automatically), and set a
    location (GPS button, or pick a city from the dropdown as the manual

@@ -75,15 +75,17 @@ def _photos_for(user_id: int) -> list[dict]:
     )
 
 
+def email_taken(user_id: int, email: str) -> bool:
+    return query_one("SELECT id FROM users WHERE email = %s AND id != %s", (email, user_id)) is not None
+
+
 def update_profile(user_id: int, fields: dict) -> dict:
     allowed = {"first_name", "last_name", "email", "gender", "sexual_pref", "biography"}
     updates = {k: v for k, v in fields.items() if k in allowed}
     if not updates:
         return get_own_profile(user_id)
-    if "email" in updates:
-        taken = query_one("SELECT id FROM users WHERE email = %s AND id != %s", (updates["email"], user_id))
-        if taken:
-            raise conflict("An account with this email already exists")
+    if "email" in updates and email_taken(user_id, updates["email"]):
+        raise conflict("An account with this email already exists")
     set_clause = ", ".join(f"{k} = %s" for k in updates)
     execute(
         f"UPDATE users SET {set_clause}, updated_at = now() WHERE id = %s",

@@ -17,15 +17,23 @@ def notify(user_id: int, type_: str, actor_id: int | None) -> None:
     )
 
 
+# Notifications from someone either side has since blocked are hidden: their
+# profile is no longer reachable, so the entry would only link to a 404.
+_NOT_BLOCKED = (
+    "NOT EXISTS (SELECT 1 FROM blocks b WHERE (b.blocker_id = n.user_id AND b.blocked_id = n.actor_id) "
+    "OR (b.blocker_id = n.actor_id AND b.blocked_id = n.user_id))"
+)
+
+
 def list_notifications(user_id: int, limit: int = 50) -> list[dict]:
     return query_all(
-        """
+        f"""
         SELECT n.id, n.type, n.is_read, n.created_at, n.actor_id,
                u.username AS actor_username, u.first_name AS actor_first_name,
                (SELECT filename FROM photos WHERE user_id = u.id AND is_profile LIMIT 1) AS actor_photo
         FROM notifications n
         LEFT JOIN users u ON u.id = n.actor_id
-        WHERE n.user_id = %s
+        WHERE n.user_id = %s AND {_NOT_BLOCKED}
         ORDER BY n.created_at DESC
         LIMIT %s
         """,
@@ -34,7 +42,10 @@ def list_notifications(user_id: int, limit: int = 50) -> list[dict]:
 
 
 def unread_count(user_id: int) -> int:
-    row = query_one("SELECT count(*) AS n FROM notifications WHERE user_id = %s AND is_read = FALSE", (user_id,))
+    row = query_one(
+        f"SELECT count(*) AS n FROM notifications n WHERE n.user_id = %s AND n.is_read = FALSE AND {_NOT_BLOCKED}",
+        (user_id,),
+    )
     return row["n"]
 
 
